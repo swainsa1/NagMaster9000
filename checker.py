@@ -168,7 +168,7 @@ def send_email(results: dict[str, list[str]]):
         return
 
     has_overdue = any(items for items in results.values())
-    subject = "🚨 NagMaster9000 — Overdue Assignments" if has_overdue else "✅ NagMaster9000 — All Clear"
+    subject = "🚨 Gentle Reminder— Overdue Assignments" if has_overdue else "✅  All Clear"
 
     # Build HTML body
     html_rows = ""
@@ -196,7 +196,7 @@ def send_email(results: dict[str, list[str]]):
 
     html = f"""
     <div style='font-family:sans-serif;max-width:640px;margin:0 auto'>
-      <h2 style='color:#333'>🤖 NagMaster9000 Report</h2>
+      <h2 style='color:#333'>🤖 NagMaster9000 - Assignment Helper Report </h2>
       {html_rows}
       <p style='color:#999;font-size:12px;margin-top:32px'>
         Only showing assignments overdue within the last {MAX_DAYS_OVERDUE} days.
