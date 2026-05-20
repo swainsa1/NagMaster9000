@@ -203,15 +203,18 @@ def send_email(results: dict[str, list[str]]):
       </p>
     </div>"""
 
+    recipients = [e.strip() for e in EMAIL_TO.split(",") if e.strip()]
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = GMAIL_USER
-    msg["To"]      = EMAIL_TO
+    msg["To"]      = ", ".join(recipients)
     msg.attach(MIMEText(html, "html"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-        smtp.sendmail(GMAIL_USER, EMAIL_TO, msg.as_string())
+        smtp.sendmail(GMAIL_USER, recipients, msg.as_string())
+    print(f"Email: sent to {', '.join(recipients)}")
     print(f"Email: sent to {EMAIL_TO}")
 
 
