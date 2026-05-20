@@ -1,0 +1,38 @@
+name: NagMaster9000 — Assignment Check
+
+on:
+  schedule:
+    # 5:00 PM Central Time (CDT = UTC-5 → 22:00 UTC)
+    - cron: '0 22 * * 1-5'   # weekdays only (Mon-Fri)
+  workflow_dispatch:           # lets you trigger manually from GitHub UI
+
+jobs:
+  nag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright requests python-dotenv
+          playwright install chromium --with-deps
+
+      - name: Run NagMaster9000
+        env:
+          SCHOOLOGY_USER:    ${{ secrets.SCHOOLOGY_USER }}
+          SCHOOLOGY_PASS:    ${{ secrets.SCHOOLOGY_PASS }}
+          SCHOOLOGY_DOMAIN:  ${{ secrets.SCHOOLOGY_DOMAIN }}
+          STUDENT_NAMES:     ${{ secrets.STUDENT_NAMES }}
+          WHATSAPP_NUM:      ${{ secrets.WHATSAPP_NUM }}
+          CALLMEBOT_KEY:     ${{ secrets.CALLMEBOT_KEY }}
+          GMAIL_USER:        ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD:${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_TO:          ${{ secrets.EMAIL_TO }}
+          MAX_DAYS_OVERDUE:  "30"
+        run: python checker.py
