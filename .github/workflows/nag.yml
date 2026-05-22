@@ -35,4 +35,7 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO:          ${{ secrets.EMAIL_TO }}
           MAX_DAYS_OVERDUE:  "14"
-        run: python checker.py
+          TASKLY_URL:        ${{ secrets.TASKLY_URL }}
+          TASKLY_ADMIN_USER: ${{ secrets.TASKLY_ADMIN_USER }}
+          TASKLY_ADMIN_PASS: ${{ secrets.TASKLY_ADMIN_PASS }}
+        run: python main.py
