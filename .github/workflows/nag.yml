@@ -2,8 +2,8 @@ name: NagMaster9000 — Assignment Check
 
 on:
   schedule:
-    # 5:00 PM Central Time (CDT = UTC-5 → 22:00 UTC)
-    - cron: '0 22 * * 1-5'   # weekdays only (Mon-Fri)
+    # 4:00 PM Central Time (CDT = UTC-5 → 21:00 UTC)
+    - cron: '0 20 * * 1-5'   # weekdays only (Mon-Fri)
   workflow_dispatch:           # lets you trigger manually from GitHub UI
 
 jobs:
