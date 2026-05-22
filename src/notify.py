@@ -4,10 +4,9 @@ import smtplib
 import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from urllib.parse import quote
 
 from src.config import (
-    WHATSAPP_NUM, CALLMEBOT_KEY,
+    SLACK_WEBHOOK_URL,
     GMAIL_USER, GMAIL_APP_PASSWORD, EMAIL_TO,
     MAX_DAYS_OVERDUE,
 )
@@ -117,13 +116,9 @@ def send_email(overdue: dict, due: dict, due_label: str):
     print(f"Email: sent to {', '.join(recipients)}")
 
 
-def send_whatsapp(message: str):
-    if not WHATSAPP_NUM or not CALLMEBOT_KEY or CALLMEBOT_KEY == "your_callmebot_api_key":
-        print("WhatsApp: skipped (not configured)")
+def send_slack(message: str):
+    if not SLACK_WEBHOOK_URL:
+        print("Slack: skipped (not configured)")
         return
-    url = (
-        "https://api.callmebot.com/whatsapp.php"
-        f"?phone={WHATSAPP_NUM}&text={quote(message)}&apikey={CALLMEBOT_KEY}"
-    )
-    resp = requests.get(url, timeout=15)
-    print(f"WhatsApp: {resp.status_code} {resp.text[:200]}")
+    resp = requests.post(SLACK_WEBHOOK_URL, json={"text": message}, timeout=15)
+    print(f"Slack: {resp.status_code} {resp.text[:200]}")

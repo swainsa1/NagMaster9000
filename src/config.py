@@ -8,8 +8,7 @@ SCHOOLOGY_PASS    = os.environ["SCHOOLOGY_PASS"]
 SCHOOLOGY_DOMAIN  = os.environ.get("SCHOOLOGY_DOMAIN", "app.schoology.com")
 STUDENT_NAMES     = [n.strip() for n in os.environ["STUDENT_NAMES"].split(",")]
 
-WHATSAPP_NUM      = os.environ.get("WHATSAPP_NUM", "")
-CALLMEBOT_KEY     = os.environ.get("CALLMEBOT_KEY", "")
+SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "")
 
 GMAIL_USER        = os.environ.get("GMAIL_USER", "")
 GMAIL_APP_PASSWORD= os.environ.get("GMAIL_APP_PASSWORD", "")

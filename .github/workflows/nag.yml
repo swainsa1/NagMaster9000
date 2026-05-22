@@ -29,8 +29,7 @@ jobs:
           SCHOOLOGY_PASS:    ${{ secrets.SCHOOLOGY_PASS }}
           SCHOOLOGY_DOMAIN:  ${{ secrets.SCHOOLOGY_DOMAIN }}
           STUDENT_NAMES:     ${{ secrets.STUDENT_NAMES }}
-          WHATSAPP_NUM:      ${{ secrets.WHATSAPP_NUM }}
-          CALLMEBOT_KEY:     ${{ secrets.CALLMEBOT_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           GMAIL_USER:        ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO:          ${{ secrets.EMAIL_TO }}
