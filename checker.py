@@ -24,6 +24,31 @@ EMAIL_TO          = os.environ.get("EMAIL_TO", "")
 MAX_DAYS_OVERDUE  = int(os.environ.get("MAX_DAYS_OVERDUE", "14"))
 DEBUG             = os.environ.get("DEBUG", "0") == "1"
 
+TASKLY_URL        = os.environ.get("TASKLY_URL", "").rstrip("/")
+TASKLY_ADMIN_USER = os.environ.get("TASKLY_ADMIN_USER", "")
+TASKLY_ADMIN_PASS = os.environ.get("TASKLY_ADMIN_PASS", "")
+
+# Schoology course name → Taskly tag (falls back to "Others")
+COURSE_TAG_MAP = {
+    "math":          "Math",
+    "science":       "Science",
+    "english":       "English",
+    "eng/lang":      "English",
+    "reading":       "Reading",
+    "band":          "Band",
+    "art":           "Art",
+    "global studies":"Global Studies",
+    "mn studies":    "MN Studies",
+    "technology":    "Technology",
+}
+
+def course_to_tag(course: str) -> str:
+    cl = course.lower()
+    for key, tag in COURSE_TAG_MAP.items():
+        if key in cl:
+            return tag
+    return "Others"
+
 
 def next_school_day(from_date: date) -> date:
     """Returns the next school day (Mon–Fri) after from_date. Skips weekends."""
@@ -194,7 +219,7 @@ async def run():
 
         await browser.close()
 
-    return overdue_results, due_results, label
+    return overdue_results, due_results, label, today, tomorrow
 
 
 def build_message(overdue: dict, due: dict, due_label: str) -> str:
@@ -297,6 +322,110 @@ def send_email(overdue: dict, due: dict, due_label: str):
     print(f"Email: sent to {', '.join(recipients)}")
 
 
+def taskly_login() -> requests.Session | None:
+    """Login to Taskly as admin, return an authenticated session."""
+    if not TASKLY_URL or not TASKLY_ADMIN_USER or not TASKLY_ADMIN_PASS:
+        return None
+    session = requests.Session()
+    resp = session.post(
+        f"{TASKLY_URL}/api/v1/auth/login",
+        json={"username": TASKLY_ADMIN_USER, "password": TASKLY_ADMIN_PASS},
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        print(f"Taskly login failed: {resp.status_code} {resp.text[:200]}")
+        return None
+    print(f"Taskly: logged in as {resp.json().get('display_name')}")
+    return session
+
+
+def taskly_existing_tasks(session: requests.Session, owner_id: int) -> set[tuple]:
+    """Return set of (description, due_date) for all existing tasks for this user."""
+    resp = session.get(
+        f"{TASKLY_URL}/api/v1/admin/tasks",
+        params={"userId": owner_id, "filter": "all"},
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        return set()
+    return {(t["description"], t["due_date"]) for t in resp.json()}
+
+
+def taskly_create_tasks(session: requests.Session, owner_id: int,
+                        items: list[str], due_date: date):
+    """Create Taskly tasks for `items`, skipping duplicates."""
+    existing = taskly_existing_tasks(session, owner_id)
+    due_str  = due_date.strftime("%Y-%m-%d")
+    created  = 0
+
+    for item in items:
+        parts  = item.split(" | ")
+        name   = parts[0][:120]   # Taskly description max 120 chars
+        course = parts[1] if len(parts) > 1 else ""
+        tag    = course_to_tag(course)
+
+        if (name, due_str) in existing:
+            print(f"  Taskly: skip (exists) — {name}")
+            continue
+
+        resp = session.post(
+            f"{TASKLY_URL}/api/v1/admin/tasks",
+            json={"owner_id": owner_id, "description": name,
+                  "due_date": due_str, "tag": tag},
+            timeout=15,
+        )
+        if resp.status_code == 201:
+            print(f"  Taskly: created — {name} [{tag}] on {due_str}")
+            created += 1
+        else:
+            print(f"  Taskly: error {resp.status_code} — {resp.text[:200]}")
+
+    return created
+
+
+def push_to_taskly(due: dict, today: date, tomorrow: date):
+    """Push due-today and due-tomorrow assignments into Taskly for each student."""
+    if not TASKLY_URL:
+        print("Taskly: skipped (not configured)")
+        return
+
+    session = taskly_login()
+    if not session:
+        return
+
+    # Map student names to Taskly user IDs
+    resp = session.get(f"{TASKLY_URL}/api/v1/admin/users", timeout=15)
+    if resp.status_code != 200:
+        print(f"Taskly: could not fetch users ({resp.status_code})")
+        return
+
+    users = {u["display_name"].lower(): u["id"] for u in resp.json()}
+
+    for student_name, items in due.items():
+        # Match by display_name (case-insensitive)
+        uid = next(
+            (uid for dname, uid in users.items()
+             if student_name.lower() in dname or dname in student_name.lower()),
+            None,
+        )
+        if not uid:
+            print(f"  Taskly: no account found for '{student_name}'")
+            continue
+
+        first = student_name.split()[0].title()
+        print(f"\n  Taskly → {first} (id={uid})")
+
+        # Split items by whether they're today or tomorrow
+        today_items    = [i for i in items if "Today at"    in i]
+        tomorrow_items = [i for i in items if "Tomorrow at" in i or
+                          (tomorrow.strftime("%A") in i and "at" in i)]
+
+        if today_items:
+            taskly_create_tasks(session, uid, today_items, today)
+        if tomorrow_items:
+            taskly_create_tasks(session, uid, tomorrow_items, tomorrow)
+
+
 def send_whatsapp(message: str):
     if not WHATSAPP_NUM or not CALLMEBOT_KEY or CALLMEBOT_KEY == "your_callmebot_api_key":
         print("WhatsApp: skipped (not configured)")
@@ -310,15 +439,19 @@ def send_whatsapp(message: str):
 
 
 async def main():
-    overdue, due, due_label = await run()
+    overdue, due, due_label, today, tomorrow = await run()
     msg = build_message(overdue, due, due_label)
     print("\n--- Message ---")
     print(msg)
     if not DEBUG:
         send_whatsapp(msg)
         send_email(overdue, due, due_label)
+        print("\nPushing to Taskly...")
+        push_to_taskly(due, today, tomorrow)
     else:
         print("\n(Notifications skipped in DEBUG mode)")
+        print("Pushing to Taskly (debug mode still runs)...")
+        push_to_taskly(due, today, tomorrow)
 
 
 asyncio.run(main())
