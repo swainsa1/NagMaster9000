@@ -16,6 +16,7 @@ EMAIL_TO          = os.environ.get("EMAIL_TO", "")
 
 MAX_DAYS_OVERDUE  = int(os.environ.get("MAX_DAYS_OVERDUE", "14"))
 DEBUG             = os.environ.get("DEBUG", "0") == "1"
+VACATION_MODE     = os.environ.get("VACATION_MODE", "0") == "1"
 
 TASKLY_URL        = os.environ.get("TASKLY_URL", "").rstrip("/")
 TASKLY_ADMIN_USER = os.environ.get("TASKLY_ADMIN_USER", "")

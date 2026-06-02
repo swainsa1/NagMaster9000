@@ -1,13 +1,17 @@
 """NagMaster9000 — entry point."""
 
 import asyncio
-from src.config import DEBUG
+from src.config import DEBUG, VACATION_MODE
 from src.schoology import scrape_all
 from src.notify import build_message, send_email, send_slack
 from src.taskly import push_to_taskly
 
 
 async def main():
+    if VACATION_MODE:
+        print("Vacation mode is ON — skipping all checks.")
+        return
+
     overdue, due, due_label, today, tomorrow = await scrape_all()
 
     msg = build_message(overdue, due, due_label)

@@ -37,4 +37,5 @@ jobs:
           TASKLY_URL:        ${{ secrets.TASKLY_URL }}
           TASKLY_ADMIN_USER: ${{ secrets.TASKLY_ADMIN_USER }}
           TASKLY_ADMIN_PASS: ${{ secrets.TASKLY_ADMIN_PASS }}
+          VACATION_MODE:     ${{ vars.VACATION_MODE }}
         run: python main.py
