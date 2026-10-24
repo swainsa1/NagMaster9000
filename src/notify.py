@@ -10,6 +10,24 @@ from src.config import (
     GMAIL_USER, GMAIL_APP_PASSWORD, EMAIL_TO,
     MAX_DAYS_OVERDUE,
 )
+from src.utils import letter_for, percent_of
+
+
+def _grade_table(rows: list[tuple[str, str]]) -> tuple[list[tuple[str, str, str]], tuple[str, str, str] | None]:
+    """Per-course (course, '99.98%', 'A+') rows plus an overall-average row."""
+    table, pcts = [], []
+    for course, grade in rows:
+        pct = percent_of(grade)
+        if pct is None:
+            table.append((course, "—", grade))
+            continue
+        pcts.append(pct)
+        table.append((course, f"{pct:.2f}%", letter_for(pct)))
+    overall = None
+    if pcts:
+        avg     = sum(pcts) / len(pcts)
+        overall = ("Overall average", f"{avg:.2f}%", letter_for(avg))
+    return table, overall
 
 
 def _grades_text(grades: dict) -> list[str]:
@@ -17,30 +35,46 @@ def _grades_text(grades: dict) -> list[str]:
     for name, rows in grades.items():
         if not rows:
             continue
-        width = max(len(course) for course, _ in rows)
+        table, overall = _grade_table(rows)
+        all_rows = table + ([overall] if overall else [])
+        width = max(len(c) for c, _, _ in all_rows)
         lines.append(f"\n📊 *{name.split()[0].title()} — Grades*")
         lines.append("```")
-        lines += [f"{course.ljust(width)}  {grade}" for course, grade in rows]
+        lines += [f"{c.ljust(width)}  {p.rjust(7)}  {l}" for c, p, l in table]
+        if overall:
+            lines.append("-" * (width + 12))
+            lines.append(f"{overall[0].ljust(width)}  {overall[1].rjust(7)}  {overall[2]}")
         lines.append("```")
     return lines
 
 
 def _grades_html(grades: dict) -> str:
+    cell = "padding:6px 12px;border-bottom:1px solid #eee"
     html = ""
     for name, rows in grades.items():
         if not rows:
             continue
+        table, overall = _grade_table(rows)
         body = "".join(
-            f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>{course}</td>"
-            f"<td style='padding:6px 12px;border-bottom:1px solid #eee;white-space:nowrap'>{grade}</td></tr>"
-            for course, grade in rows
+            f"<tr><td style='{cell}'>{c}</td>"
+            f"<td style='{cell};text-align:right;white-space:nowrap'>{p}</td>"
+            f"<td style='{cell};font-weight:bold'>{l}</td></tr>"
+            for c, p, l in table
         )
+        if overall:
+            c, p, l = overall
+            body += (
+                f"<tr style='background:#f5f5f5;font-weight:bold'><td style='{cell}'>{c}</td>"
+                f"<td style='{cell};text-align:right;white-space:nowrap'>{p}</td>"
+                f"<td style='{cell}'>{l}</td></tr>"
+            )
         html += f"""
         <h3 style='margin-top:28px;color:#333'>📊 {name.split()[0].title()} — Grades</h3>
         <table style='border-collapse:collapse;width:100%;font-family:sans-serif;font-size:14px'>
           <tr style='background:#f5f5f5'>
             <th style='padding:8px 12px;text-align:left'>Course</th>
-            <th style='padding:8px 12px;text-align:left'>Grade</th>
+            <th style='padding:8px 12px;text-align:right'>Grade %</th>
+            <th style='padding:8px 12px;text-align:left'>Letter</th>
           </tr>
           {body}
         </table>"""
