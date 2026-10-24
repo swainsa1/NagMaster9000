@@ -125,10 +125,42 @@ async def get_due_on(page, student_id: str, targets: list[date]) -> list[str]:
     return results
 
 
-async def scrape_all() -> tuple[dict, dict, str, date, date]:
+_GRADES_JS = """() => {
+    const text = r => {
+        const s = r && r.querySelector('td.grade-column .awarded-grade');
+        return s ? s.textContent.replace(/\\s+/g, ' ').trim() : '';
+    };
+    return [...document.querySelectorAll('li.s-grades-course-item')].map(li => {
+        const title   = li.querySelector('a');
+        const periods = [...li.querySelectorAll('tr.period-row')].map(text).filter(Boolean);
+        return {
+            course: title ? title.textContent.split(':')[0].trim() : '',
+            grade:  text(li.querySelector('tr.course-row')) || periods[periods.length - 1] || '',
+        };
+    });
+}"""
+
+
+async def get_grades(page, student_id: str) -> list[tuple[str, str]]:
+    """Returns [(course, 'A (96.04%)')] for current courses that have a grade posted."""
+    await page.goto(f"https://{SCHOOLOGY_DOMAIN}/parent/switch_child/{student_id}")
+    await page.wait_for_load_state("networkidle")
+    await page.goto(f"https://{SCHOOLOGY_DOMAIN}/parent/grades_attendance/grades")
+    await page.wait_for_load_state("networkidle")
+    await page.wait_for_selector("li.s-grades-course-item", timeout=20000)
+    await screenshot(page, f"grades_{student_id}")
+
+    rows = await page.evaluate(_GRADES_JS)
+    grades = [(r["course"], r["grade"]) for r in rows if r["course"] and r["grade"]]
+    for course, grade in grades:
+        print(f"  📊 {course}: {grade}")
+    return grades
+
+
+async def scrape_all() -> tuple[dict, dict, str, date, date, dict]:
     """
-    Main entry point: login once, scrape overdue + due for all students.
-    Returns (overdue_results, due_results, due_label, today, tomorrow).
+    Main entry point: login once, scrape overdue + due + grades for all students.
+    Returns (overdue_results, due_results, due_label, today, tomorrow, grades).
     """
     today    = date.today()
     tomorrow = next_school_day(today)
@@ -138,6 +170,7 @@ async def scrape_all() -> tuple[dict, dict, str, date, date]:
 
     overdue_results: dict[str, list[str]] = {}
     due_results:     dict[str, list[str]] = {}
+    grade_results:   dict[str, list[tuple[str, str]]] = {}
 
     from playwright.async_api import async_playwright as apw
     async with apw() as p:
@@ -170,6 +203,13 @@ async def scrape_all() -> tuple[dict, dict, str, date, date]:
             print(f"  Checking due {label}...")
             due_results[student_name] = await get_due_on(page, sid, targets)
 
+            print("  Checking grades...")
+            try:
+                grade_results[student_name] = await get_grades(page, sid)
+            except Exception as e:
+                print(f"::warning::Could not fetch grades for {student_name}: {e}")
+                grade_results[student_name] = []
+
         await browser.close()
 
-    return overdue_results, due_results, label, today, tomorrow
+    return overdue_results, due_results, label, today, tomorrow, grade_results

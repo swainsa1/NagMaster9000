@@ -12,7 +12,42 @@ from src.config import (
 )
 
 
-def build_message(overdue: dict, due: dict, due_label: str) -> str:
+def _grades_text(grades: dict) -> list[str]:
+    lines = []
+    for name, rows in grades.items():
+        if not rows:
+            continue
+        width = max(len(course) for course, _ in rows)
+        lines.append(f"\n📊 *{name.split()[0].title()} — Grades*")
+        lines.append("```")
+        lines += [f"{course.ljust(width)}  {grade}" for course, grade in rows]
+        lines.append("```")
+    return lines
+
+
+def _grades_html(grades: dict) -> str:
+    html = ""
+    for name, rows in grades.items():
+        if not rows:
+            continue
+        body = "".join(
+            f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>{course}</td>"
+            f"<td style='padding:6px 12px;border-bottom:1px solid #eee;white-space:nowrap'>{grade}</td></tr>"
+            for course, grade in rows
+        )
+        html += f"""
+        <h3 style='margin-top:28px;color:#333'>📊 {name.split()[0].title()} — Grades</h3>
+        <table style='border-collapse:collapse;width:100%;font-family:sans-serif;font-size:14px'>
+          <tr style='background:#f5f5f5'>
+            <th style='padding:8px 12px;text-align:left'>Course</th>
+            <th style='padding:8px 12px;text-align:left'>Grade</th>
+          </tr>
+          {body}
+        </table>"""
+    return html
+
+
+def build_message(overdue: dict, due: dict, due_label: str, grades: dict | None = None) -> str:
     lines = ["🤖 *Beep Boop! Your Homework Overlord Has Spoken!*\n"]
     for name in overdue:
         first   = name.split()[0].title()
@@ -34,6 +69,7 @@ def build_message(overdue: dict, due: dict, due_label: str) -> str:
             lines.append(f"  📅 Due {due_label}: nothing due")
 
         lines.append("")
+    lines += _grades_text(grades or {})
     return "\n".join(lines).strip()
 
 
@@ -62,7 +98,7 @@ def _assignment_rows(items: list[str], col3_label: str) -> str:
     </table>"""
 
 
-def send_email(overdue: dict, due: dict, due_label: str):
+def send_email(overdue: dict, due: dict, due_label: str, grades: dict | None = None):
     if not GMAIL_USER or not GMAIL_APP_PASSWORD or GMAIL_APP_PASSWORD == "your_16_char_app_password":
         print("Email: skipped (not configured)")
         return
@@ -93,6 +129,8 @@ def send_email(overdue: dict, due: dict, due_label: str):
             html_body += _assignment_rows(d_items, "Due At")
         else:
             html_body += f"<p style='color:#999'>📅 Nothing due on {due_label}</p>"
+
+    html_body += _grades_html(grades or {})
 
     html = f"""
     <div style='font-family:sans-serif;max-width:660px;margin:0 auto;color:#222'>
