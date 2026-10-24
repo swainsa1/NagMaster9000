@@ -15,15 +15,15 @@ async def main():
         print("Vacation mode is ON — skipping all checks.")
         return
 
-    overdue, due, due_label, today, tomorrow = await scrape_all()
+    overdue, due, due_label, today, tomorrow, grades = await scrape_all()
 
-    msg = build_message(overdue, due, due_label)
+    msg = build_message(overdue, due, due_label, grades)
     print("\n--- Message ---")
     print(msg)
 
     if not DEBUG:
         send_slack(msg)
-        send_email(overdue, due, due_label)
+        send_email(overdue, due, due_label, grades)
 
     print("\nPushing to Taskly...")
     try:
