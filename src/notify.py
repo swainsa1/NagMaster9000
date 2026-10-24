@@ -13,22 +13,20 @@ from src.config import (
 from src.utils import gpa_points, letter_for, percent_of
 
 
-def _grade_table(rows: list[tuple[str, str]]) -> tuple[list[tuple[str, str, str, str]], tuple[str, str, str, str] | None]:
-    """Per-course (course, '99.98%', 'A+', '4.0') rows plus an overall row (average % and GPA)."""
+def _grade_table(rows: list[tuple[str, str]]) -> tuple[list[tuple[str, str, str]], tuple[str, str, str] | None]:
+    """Per-course (course, '99.98%', '4.0') rows plus an overall row (average % and GPA)."""
     table, pcts, points = [], [], []
     for course, grade in rows:
         pct = percent_of(grade)
         if pct is None:
-            table.append((course, "—", grade, "—"))
+            table.append((course, grade, "—"))
             continue
-        letter = letter_for(pct)
         pcts.append(pct)
-        points.append(gpa_points(letter))
-        table.append((course, f"{pct:.2f}%", letter, f"{points[-1]:.1f}"))
+        points.append(gpa_points(letter_for(pct)))
+        table.append((course, f"{pct:.2f}%", f"{points[-1]:.1f}"))
     overall = None
     if pcts:
-        avg     = sum(pcts) / len(pcts)
-        overall = ("Overall", f"{avg:.2f}%", letter_for(avg), f"{sum(points) / len(points):.2f}")
+        overall = ("Overall", f"{sum(pcts) / len(pcts):.2f}%", f"{sum(points) / len(points):.2f}")
     return table, overall
 
 
@@ -40,13 +38,13 @@ def _grades_text(grades: dict) -> list[str]:
         table, overall = _grade_table(rows)
         all_rows = table + ([overall] if overall else [])
         width = max(len(c) for c, *_ in all_rows)
-        fmt = lambda c, p, l, g: f"{c.ljust(width)}  {p.rjust(7)}  {l.ljust(2)}  {g.rjust(4)}"
+        fmt = lambda c, p, g: f"{c.ljust(width)}  {p.rjust(7)}  {g.rjust(4)}"
         lines.append(f"\n📊 *{name.split()[0].title()} — Grades*")
         lines.append("```")
-        lines.append(fmt("Course", "%", "Ltr", "GPA"))
+        lines.append(fmt("Course", "%", "GPA"))
         lines += [fmt(*r) for r in table]
         if overall:
-            lines.append("-" * (width + 18))
+            lines.append("-" * (width + 15))
             lines.append(fmt(*overall))
         lines.append("```")
     return lines
@@ -60,15 +58,14 @@ def _grades_html(grades: dict) -> str:
             continue
         table, overall = _grade_table(rows)
 
-        def tr(c, p, l, g, style=""):
+        def tr(c, p, g, style=""):
             return (
                 f"<tr style='{style}'><td style='{cell}'>{c}</td>"
                 f"<td style='{cell};text-align:right;white-space:nowrap'>{p}</td>"
-                f"<td style='{cell}'>{l}</td>"
                 f"<td style='{cell};text-align:right'>{g}</td></tr>"
             )
 
-        body = "".join(tr(*r, style="font-weight:normal") for r in table)
+        body = "".join(tr(*r) for r in table)
         if overall:
             body += tr(*overall, style="background:#f5f5f5;font-weight:bold")
         html += f"""
@@ -77,7 +74,6 @@ def _grades_html(grades: dict) -> str:
           <tr style='background:#f5f5f5'>
             <th style='padding:8px 12px;text-align:left'>Course</th>
             <th style='padding:8px 12px;text-align:right'>Grade %</th>
-            <th style='padding:8px 12px;text-align:left'>Letter</th>
             <th style='padding:8px 12px;text-align:right'>GPA</th>
           </tr>
           {body}
