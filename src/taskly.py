@@ -12,11 +12,19 @@ def taskly_login() -> requests.Session | None:
     if not TASKLY_URL or not TASKLY_ADMIN_USER or not TASKLY_ADMIN_PASS:
         return None
     session = requests.Session()
-    resp = session.post(
-        f"{TASKLY_URL}/api/v1/auth/login",
-        json={"username": TASKLY_ADMIN_USER, "password": TASKLY_ADMIN_PASS},
-        timeout=15,
-    )
+    # Render's free tier sleeps when idle; the first request can take 60s+ to wake it.
+    for attempt in range(1, 4):
+        try:
+            resp = session.post(
+                f"{TASKLY_URL}/api/v1/auth/login",
+                json={"username": TASKLY_ADMIN_USER, "password": TASKLY_ADMIN_PASS},
+                timeout=90,
+            )
+            break
+        except requests.RequestException as e:
+            print(f"Taskly login attempt {attempt}/3 failed: {e}")
+            if attempt == 3:
+                raise
     if resp.status_code != 200:
         print(f"Taskly login failed: {resp.status_code} {resp.text[:200]}")
         return None
