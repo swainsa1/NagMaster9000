@@ -36,6 +36,20 @@ def letter_for(pct: float) -> str:
     return "F"
 
 
+_GPA_POINTS = {
+    "A+": 4.0, "A": 4.0, "A-": 3.7,
+    "B+": 3.3, "B": 3.0, "B-": 2.7,
+    "C+": 2.3, "C": 2.0, "C-": 1.7,
+    "D+": 1.3, "D": 1.0, "D-": 0.7,
+    "F": 0.0,
+}
+
+
+def gpa_points(letter: str) -> float:
+    """Unweighted 4.0-scale points for a +/- letter grade."""
+    return _GPA_POINTS[letter]
+
+
 def percent_of(grade: str) -> float | None:
     """Pull the number out of a Schoology grade like 'A (99.98%)'."""
     m = re.search(r"([\d.]+)\s*%", grade)

@@ -10,23 +10,25 @@ from src.config import (
     GMAIL_USER, GMAIL_APP_PASSWORD, EMAIL_TO,
     MAX_DAYS_OVERDUE,
 )
-from src.utils import letter_for, percent_of
+from src.utils import gpa_points, letter_for, percent_of
 
 
-def _grade_table(rows: list[tuple[str, str]]) -> tuple[list[tuple[str, str, str]], tuple[str, str, str] | None]:
-    """Per-course (course, '99.98%', 'A+') rows plus an overall-average row."""
-    table, pcts = [], []
+def _grade_table(rows: list[tuple[str, str]]) -> tuple[list[tuple[str, str, str, str]], tuple[str, str, str, str] | None]:
+    """Per-course (course, '99.98%', 'A+', '4.0') rows plus an overall row (average % and GPA)."""
+    table, pcts, points = [], [], []
     for course, grade in rows:
         pct = percent_of(grade)
         if pct is None:
-            table.append((course, "—", grade))
+            table.append((course, "—", grade, "—"))
             continue
+        letter = letter_for(pct)
         pcts.append(pct)
-        table.append((course, f"{pct:.2f}%", letter_for(pct)))
+        points.append(gpa_points(letter))
+        table.append((course, f"{pct:.2f}%", letter, f"{points[-1]:.1f}"))
     overall = None
     if pcts:
         avg     = sum(pcts) / len(pcts)
-        overall = ("Overall average", f"{avg:.2f}%", letter_for(avg))
+        overall = ("Overall", f"{avg:.2f}%", letter_for(avg), f"{sum(points) / len(points):.2f}")
     return table, overall
 
 
@@ -37,13 +39,15 @@ def _grades_text(grades: dict) -> list[str]:
             continue
         table, overall = _grade_table(rows)
         all_rows = table + ([overall] if overall else [])
-        width = max(len(c) for c, _, _ in all_rows)
+        width = max(len(c) for c, *_ in all_rows)
+        fmt = lambda c, p, l, g: f"{c.ljust(width)}  {p.rjust(7)}  {l.ljust(2)}  {g.rjust(4)}"
         lines.append(f"\n📊 *{name.split()[0].title()} — Grades*")
         lines.append("```")
-        lines += [f"{c.ljust(width)}  {p.rjust(7)}  {l}" for c, p, l in table]
+        lines.append(fmt("Course", "%", "Ltr", "GPA"))
+        lines += [fmt(*r) for r in table]
         if overall:
-            lines.append("-" * (width + 12))
-            lines.append(f"{overall[0].ljust(width)}  {overall[1].rjust(7)}  {overall[2]}")
+            lines.append("-" * (width + 18))
+            lines.append(fmt(*overall))
         lines.append("```")
     return lines
 
@@ -55,19 +59,18 @@ def _grades_html(grades: dict) -> str:
         if not rows:
             continue
         table, overall = _grade_table(rows)
-        body = "".join(
-            f"<tr><td style='{cell}'>{c}</td>"
-            f"<td style='{cell};text-align:right;white-space:nowrap'>{p}</td>"
-            f"<td style='{cell};font-weight:bold'>{l}</td></tr>"
-            for c, p, l in table
-        )
-        if overall:
-            c, p, l = overall
-            body += (
-                f"<tr style='background:#f5f5f5;font-weight:bold'><td style='{cell}'>{c}</td>"
+
+        def tr(c, p, l, g, style=""):
+            return (
+                f"<tr style='{style}'><td style='{cell}'>{c}</td>"
                 f"<td style='{cell};text-align:right;white-space:nowrap'>{p}</td>"
-                f"<td style='{cell}'>{l}</td></tr>"
+                f"<td style='{cell}'>{l}</td>"
+                f"<td style='{cell};text-align:right'>{g}</td></tr>"
             )
+
+        body = "".join(tr(*r, style="font-weight:normal") for r in table)
+        if overall:
+            body += tr(*overall, style="background:#f5f5f5;font-weight:bold")
         html += f"""
         <h3 style='margin-top:28px;color:#333'>📊 {name.split()[0].title()} — Grades</h3>
         <table style='border-collapse:collapse;width:100%;font-family:sans-serif;font-size:14px'>
@@ -75,6 +78,7 @@ def _grades_html(grades: dict) -> str:
             <th style='padding:8px 12px;text-align:left'>Course</th>
             <th style='padding:8px 12px;text-align:right'>Grade %</th>
             <th style='padding:8px 12px;text-align:left'>Letter</th>
+            <th style='padding:8px 12px;text-align:right'>GPA</th>
           </tr>
           {body}
         </table>"""
