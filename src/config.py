@@ -22,6 +22,11 @@ TASKLY_URL        = os.environ.get("TASKLY_URL", "").rstrip("/")
 TASKLY_ADMIN_USER = os.environ.get("TASKLY_ADMIN_USER", "")
 TASKLY_ADMIN_PASS = os.environ.get("TASKLY_ADMIN_PASS", "")
 
+# Old courses to ignore everywhere (case-insensitive substring match)
+EXCLUDED_COURSES = [
+    "summer intermediate algebra independent study",
+]
+
 # Schoology course name → Taskly tag
 COURSE_TAG_MAP = {
     "math":          "Math",
