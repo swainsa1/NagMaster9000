@@ -8,7 +8,7 @@ from src.config import (
     SCHOOLOGY_USER, SCHOOLOGY_PASS, SCHOOLOGY_DOMAIN,
     STUDENT_NAMES, MAX_DAYS_OVERDUE, DEBUG,
 )
-from src.utils import next_school_day, screenshot
+from src.utils import is_excluded, next_school_day, screenshot
 
 
 async def _login(page):
@@ -62,7 +62,7 @@ async def get_overdue(page, student_id: str) -> list[str]:
         name, days, course = m.group(1).strip(), int(m.group(2)), m.group(3).strip()
         if name.lower() in ("assignment.", "discussion.", "assignment", "discussion"):
             continue
-        if days > MAX_DAYS_OVERDUE:
+        if days > MAX_DAYS_OVERDUE or is_excluded(course):
             continue
         results.append(f"{name} | {course} | {days} day{'s' if days != 1 else ''} overdue")
         print(f"  🔴 {days}d — {name} ({course})")
@@ -117,7 +117,7 @@ async def get_due_on(page, student_id: str, targets: list[date]) -> list[str]:
             course = lines[i + 1] if i + 1 < len(lines) else ""
             key    = (name, target_str)
 
-            if name and key not in seen:
+            if name and key not in seen and not is_excluded(course):
                 seen.add(key)
                 results.append(f"{name} | {course} | {day_label} at {time_str}")
                 print(f"  📅 [{day_label}] {name} ({course}) at {time_str}")
@@ -151,7 +151,7 @@ async def get_grades(page, student_id: str) -> list[tuple[str, str]]:
     await screenshot(page, f"grades_{student_id}")
 
     rows = await page.evaluate(_GRADES_JS)
-    grades = [(r["course"], r["grade"]) for r in rows if r["course"] and r["grade"]]
+    grades = [(r["course"], r["grade"]) for r in rows if r["course"] and r["grade"] and not is_excluded(r["course"])]
     for course, grade in grades:
         print(f"  📊 {course}: {grade}")
     return grades

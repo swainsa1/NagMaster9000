@@ -1,6 +1,6 @@
 import re
 from datetime import date, timedelta
-from src.config import COURSE_TAG_MAP, DEBUG
+from src.config import COURSE_TAG_MAP, DEBUG, EXCLUDED_COURSES
 
 
 def next_school_day(from_date: date) -> date:
@@ -9,6 +9,12 @@ def next_school_day(from_date: date) -> date:
     while d.weekday() >= 5:  # 5=Sat, 6=Sun
         d += timedelta(days=1)
     return d
+
+
+def is_excluded(course: str) -> bool:
+    """True for old courses listed in EXCLUDED_COURSES."""
+    cl = course.lower()
+    return any(x in cl for x in EXCLUDED_COURSES)
 
 
 def course_to_tag(course: str) -> str:
