@@ -1,6 +1,9 @@
 """NagMaster9000 — entry point."""
 
 import asyncio
+
+import requests
+
 from src.config import DEBUG, VACATION_MODE
 from src.schoology import scrape_all
 from src.notify import build_message, send_email, send_slack
@@ -23,7 +26,11 @@ async def main():
         send_email(overdue, due, due_label)
 
     print("\nPushing to Taskly...")
-    push_to_taskly(due, today, tomorrow)
+    try:
+        push_to_taskly(due, today, tomorrow)
+    except requests.RequestException as e:
+        # Slack/email already went out; don't fail the whole run over Taskly.
+        print(f"::warning::Taskly push failed: {e}")
 
     if DEBUG:
         print("\n(Email + WhatsApp skipped in DEBUG mode)")

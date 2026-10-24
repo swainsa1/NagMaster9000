@@ -9,7 +9,7 @@ on:
 jobs:
   nag:
     if: ${{ !contains(fromJSON('["1","true","yes","on"]'), vars.VACATION_MODE) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
